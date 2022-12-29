@@ -26,3 +26,13 @@
   - network peers?
   - ip 
 
+## Intrepid socket
+  - Communication
+    - all data is bytes
+    - listening thread
+    - sending thread
+  - Discovery 
+    - broadcast to peers
+    - listen to all peers
+
+

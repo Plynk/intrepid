@@ -1,15 +1,10 @@
+mod intrepid2;
 
-mod intrepid;
+fn main() {
+    let node = intrepid2::create_node("0.0.0.0:6401".parse().expect("oh...")).unwrap();
+    node.start();
 
-fn main(){
-   let node =  intrepid::Node{
-       uuid: "n2".to_string(),
-        ip : "127.0.0.1:6401".parse().expect("uhh"),
-        connections : "127.0.0.1:6402".parse().expect("uhh"),
-        pub_topics : vec![intrepid::MsgTypes::FaceId] 
-    };
-
-    node.recv_thread();
-
-
+    loop {
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+    }
 }
