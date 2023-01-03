@@ -1,10 +1,30 @@
 use anyhow::{Ok, Result};
+use serde::{Deserialize, Serialize};
 use std::{net::UdpSocket, sync::Arc};
 
 const BROADCAST_SENDER: &str = "255.255.255.255";
 const BROADCAST_LISTNER: &str = "0.0.0.0";
-const BROADCAST_PORT : &str = "6401";
+const BROADCAST_PORT: &str = "6401";
 const BROADCAST_BUFFER_SIZE: usize = 10;
+
+#[derive(Serialize, Deserialize)]
+pub struct IntrepidMSG {
+    msg_type: MsgType,
+}
+#[derive(Serialize, Deserialize)]
+enum MsgType {
+    Broadcast(BroadCast),
+    Data(Data),
+}
+#[derive(Serialize, Deserialize)]
+struct BroadCast {
+    name: String,
+}
+#[derive(Serialize, Deserialize)]
+struct Data {
+    data: Vec<u8>,
+}
+
 
 pub struct UDPNode {
     bind_ip: String,
@@ -60,7 +80,7 @@ impl IntrepidSocket for UDPNode {
             Box::new(move || {
                 loop {
                     let msg = rx.recv().expect("BroadCast sender hung up");
-                    socket.send_to(&msg[..],format!("{BROADCAST_SENDER}:{BROADCAST_PORT}"));
+                    socket.send_to(&msg[..], format!("{BROADCAST_SENDER}:{BROADCAST_PORT}"));
                     println!("Sent Broadcast");
                     std::thread::sleep(std::time::Duration::from_millis(1000));
                 }
