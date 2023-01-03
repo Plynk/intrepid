@@ -18,12 +18,9 @@ features = [
 anyhow = "1.0.68"
 
 [[bin]]
-name = "n1"
-path = "./src/n1.rs"
+name = "n"
+path = "./src/node.rs"
 
-[[bin]]
-name = "n2"
-path = "./src/n2.rs"
 
 [[bin]]
 name = "main"
