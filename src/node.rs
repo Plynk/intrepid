@@ -10,6 +10,6 @@ fn main() {
     std::thread::spawn(a_thread);
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
-        tx.send(vec![1,1,1,1]);
+        tx.send(vec![1, 1, 1, 1]);
     }
 }

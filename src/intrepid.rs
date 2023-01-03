@@ -25,7 +25,6 @@ struct Data {
     data: Vec<u8>,
 }
 
-
 pub struct UDPNode {
     bind_ip: String,
     send_ip: String,
