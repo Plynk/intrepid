@@ -1,5 +1,6 @@
 use anyhow::{Ok, Result};
 use serde::{Deserialize, Serialize};
+use std::io::Write;
 use std::{net::UdpSocket, sync::Arc};
 
 const BROADCAST_SENDER: &str = "255.255.255.255";
@@ -8,14 +9,14 @@ const BROADCAST_PORT: &str = "6401";
 const BROADCAST_BUFFER_SIZE: usize = 10;
 
 #[derive(Serialize, Deserialize)]
-pub struct IntrepidMSG {
-    msg_type: MsgType,
-}
-#[derive(Serialize, Deserialize)]
-enum MsgType {
+enum IntrepidMsg {
     Broadcast(BroadCast),
     Data(Data),
 }
+
+/////////////////////////////////////////////////
+/// type     |     length     |      Data    ///
+
 #[derive(Serialize, Deserialize)]
 struct BroadCast {
     name: String,
@@ -23,6 +24,57 @@ struct BroadCast {
 #[derive(Serialize, Deserialize)]
 struct Data {
     data: Vec<u8>,
+}
+
+pub struct Intrepid {
+    peers: Vec<String>,
+    name: String,
+}
+
+impl Intrepid {
+    pub fn new(name: String) -> Intrepid {
+        Intrepid {
+            peers: vec![],
+            name,
+        }
+    }
+    pub fn start<S>(&mut self, socket: S)
+    where
+        S: IntrepidSocket,
+    {
+        let (tx, b_thread) = socket.broadcast_thread().expect("uhhhh b");
+        let (rx, a_thread) = socket.audience_thread().expect("uhhhh a");
+
+        std::thread::spawn(b_thread);
+        std::thread::spawn(a_thread);
+
+        let msg = msg_to_bytes(IntrepidMsg::Broadcast(BroadCast {
+            name: "blomp".to_string(),
+        }));
+        let broadcast = move || loop {
+            tx.send(msg.clone())
+                .expect("send to broadcast thread failed");
+            std::thread::sleep(std::time::Duration::from_secs(2))
+        };
+
+        let audience = move || loop {
+            let msg = rx.recv().expect("sheesh");
+            println!("{msg:?}");
+            let m = bytes_to_msg(msg);
+            match m {
+                IntrepidMsg::Broadcast(x) => self.peers.push(x.name),
+                _ => {}
+            }
+        };
+    }
+}
+
+fn msg_to_bytes(s: IntrepidMsg) -> Vec<u8> {
+    serde_json::to_string(&s).unwrap().into_bytes()
+}
+
+fn bytes_to_msg(b: Vec<u8>) -> IntrepidMsg {
+    serde_json::from_str(std::str::from_utf8(&b[..]).unwrap()).unwrap()
 }
 
 pub struct UDPNode {
