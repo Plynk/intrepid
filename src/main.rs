@@ -8,7 +8,7 @@ fn main() {
         "127.0.0.2".to_string(),
     );
 
-    let mut mesh = intrepid::Intrepid::new("Rook".to_string());
+    let mut mesh = intrepid::Intrepid::new("king".to_string());
 
     mesh.start(socket);
 
