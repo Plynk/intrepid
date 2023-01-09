@@ -57,17 +57,23 @@ impl Intrepid {
             std::thread::sleep(std::time::Duration::from_secs(2))
         };
 
+        // let (b_tx, b_rx) = std::sync::mpsc::channel();
+
         let audience = move || loop {
             let msg = rx.recv().expect("sheesh");
             println!("{msg:?}");
-            let m = bytes_to_msg(msg);
-            match m {
-                IntrepidMsg::Broadcast(x) => self.peers.push(x.name),
-                _ => {}
-            }
+            // let m = bytes_to_msg(msg);
+            // match m {
+            //     IntrepidMsg::Broadcast(x) => b_tx.send(x.name).expect("b_tx hung up"),
+            //     _ => {}
+            // }
         };
+        std::thread::spawn(broadcast);
+        std::thread::spawn(audience);
 
         loop {
+            // let m = b_rx.recv();
+            println!("Receiving");
             std::thread::sleep(std::time::Duration::from_secs(1));
         }
     }
