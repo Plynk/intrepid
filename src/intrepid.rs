@@ -1,4 +1,4 @@
-use anyhow::{Ok, Result};
+use binrw::{binrw, BinRead, BinWrite};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::{net::UdpSocket, sync::Arc};
@@ -8,20 +8,50 @@ const BROADCAST_LISTNER: &str = "0.0.0.0";
 const BROADCAST_PORT: &str = "6401";
 const BROADCAST_BUFFER_SIZE: usize = 10;
 
-#[derive(Serialize, Deserialize)]
-enum IntrepidMsg {
-    Broadcast(BroadCast),
-    Data(Data),
+#[binrw]
+#[brw(magic = b"\xFE\xEF", little)]
+struct IntrepidMsgFrame {
+    mtype: IntrepidMsgType,
+    length: u32,
+    #[br(count = length)]
+    data: Vec<u8>,
+    chk: u16,
 }
 
+#[binrw]
+enum IntrepidMsgType {
+    #[brw(magic = b"\x00\x00")]
+    Broadcast,
+    Data,
+}
+
+enum IntrepidMsg {
+    BroadCast(BroadCast),
+    Data(Data),
+}
+impl IntrepidMsg {
+    fn encode(&self, buf: &mut Vec<u8>) -> anyhow::Result<()> {
+        let frame = IntrepidMsgFrame{
+            mtype : self.into_msg_type(),
+            
+
+        }
+        anyhow::Ok(())
+    }
+
+    fn into_msg_type(&self) -> IntrepidMsgType {
+        match *self {
+            IntrepidMsg::BroadCast(_) => IntrepidMsgType::Broadcast,
+            IntrepidMsg::Data(_) => IntrepidMsgType::Data,
+        }
+    }
+}
 /////////////////////////////////////////////////
 /// type     |     length     |      Data    ///
 
-#[derive(Serialize, Deserialize)]
 struct BroadCast {
     name: String,
 }
-#[derive(Serialize, Deserialize)]
 struct Data {
     data: Vec<u8>,
 }
@@ -79,14 +109,6 @@ impl Intrepid {
     }
 }
 
-fn msg_to_bytes(s: IntrepidMsg) -> Vec<u8> {
-    serde_json::to_string(&s).unwrap().into_bytes()
-}
-
-fn bytes_to_msg(b: Vec<u8>) -> IntrepidMsg {
-    serde_json::from_str(std::str::from_utf8(&b[..]).unwrap()).unwrap()
-}
-
 pub struct UDPNode {
     bind_ip: String,
     send_ip: String,
@@ -125,9 +147,9 @@ impl IntrepidSocket for UDPNode {
     }
     fn broadcast_thread(
         &self,
-    ) -> Result<(
+    ) -> anyhow::Result<(
         std::sync::mpsc::Sender<Vec<u8>>,
-        Box<dyn Fn() -> Result<()> + Send>,
+        Box<dyn Fn() -> anyhow::Result<()> + Send>,
     )> {
         let socket = self.broad_cast_socket.clone();
         let (tx, rx) = std::sync::mpsc::channel();
@@ -142,7 +164,6 @@ impl IntrepidSocket for UDPNode {
                 loop {
                     let msg = rx.recv().expect("BroadCast sender hung up");
                     socket.send_to(&msg[..], format!("{BROADCAST_SENDER}:{BROADCAST_PORT}"));
-                    println!("Sent Broadcast");
                     std::thread::sleep(std::time::Duration::from_millis(1000));
                 }
                 Ok(())
@@ -151,9 +172,9 @@ impl IntrepidSocket for UDPNode {
     }
     fn audience_thread(
         &self,
-    ) -> Result<(
+    ) -> anyhow::Result<(
         std::sync::mpsc::Receiver<Vec<u8>>,
-        Box<dyn Fn() -> Result<()> + Send>,
+        Box<dyn Fn() -> anyhow::Result<()> + Send>,
     )> {
         let (tx, rx) = std::sync::mpsc::channel();
         let socket = self.broad_cast_socket.clone();
@@ -163,10 +184,9 @@ impl IntrepidSocket for UDPNode {
                 let mut buf = [0; BROADCAST_BUFFER_SIZE];
                 loop {
                     let (amt, src) = socket.recv_from(&mut buf)?;
-                    println!("Recieved Broadcast from : {src:?}");
                     tx.send(buf.to_vec()).expect("Audience Receiver hung up");
                 }
-                Ok(())
+                anyhow::Ok(())
             }),
         ))
     }
@@ -177,14 +197,14 @@ pub trait IntrepidSocket {
     fn sending_thread(&self) -> std::sync::mpsc::Sender<Vec<u8>>;
     fn broadcast_thread(
         &self,
-    ) -> Result<(
+    ) -> anyhow::Result<(
         std::sync::mpsc::Sender<Vec<u8>>,
-        Box<dyn Fn() -> Result<()> + Send>,
+        Box<dyn Fn() -> anyhow::Result<()> + Send>,
     )>;
     fn audience_thread(
         &self,
-    ) -> Result<(
+    ) -> anyhow::Result<(
         std::sync::mpsc::Receiver<Vec<u8>>,
-        Box<dyn Fn() -> Result<()> + Send>,
+        Box<dyn Fn() -> anyhow::Result<()> + Send>,
     )>;
 }
