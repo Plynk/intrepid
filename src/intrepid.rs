@@ -8,35 +8,43 @@ const BROADCAST_LISTNER: &str = "0.0.0.0";
 const BROADCAST_PORT: &str = "6401";
 const BROADCAST_BUFFER_SIZE: usize = 10;
 
+#[derive(Debug)]
 #[binrw]
 #[brw(magic = b"\xFE\xEF", little)]
-struct IntrepidMsgFrame {
+pub struct IntrepidMsgFrame {
     mtype: IntrepidMsgType,
     length: u32,
     #[br(count = length)]
     data: Vec<u8>,
-    chk: u16,
 }
 
 #[binrw]
-enum IntrepidMsgType {
+#[derive(Debug, Clone)]
+pub enum IntrepidMsgType {
     #[brw(magic = b"\x00\x00")]
     Broadcast,
+    #[brw(magic = b"\x00\x01")]
     Data,
 }
 
-enum IntrepidMsg {
+#[derive(Debug)]
+#[binrw]
+#[brw(little)]
+pub enum IntrepidMsg {
     BroadCast(BroadCast),
     Data(Data),
 }
 impl IntrepidMsg {
-    fn encode(&self, buf: &mut Vec<u8>) -> anyhow::Result<()> {
-        let frame = IntrepidMsgFrame{
-            mtype : self.into_msg_type(),
-            
+    pub fn into_frame(&self) -> IntrepidMsgFrame {
+        let mut writer = std::io::Cursor::new(vec![]);
+        self.write(&mut writer).expect("failed to write");
+        let length = writer.get_ref().len() as u32;
 
+        IntrepidMsgFrame {
+            mtype: self.into_msg_type(),
+            length,
+            data: writer.into_inner(),
         }
-        anyhow::Ok(())
     }
 
     fn into_msg_type(&self) -> IntrepidMsgType {
@@ -46,14 +54,32 @@ impl IntrepidMsg {
         }
     }
 }
-/////////////////////////////////////////////////
-/// type     |     length     |      Data    ///
 
-struct BroadCast {
-    name: String,
+impl IntrepidMsgFrame {
+    pub fn into_msg(&mut self) -> IntrepidMsg {
+        let mut buf = std::io::Cursor::new(self.data.clone());
+        match self.mtype {
+            IntrepidMsgType::Data => {
+                IntrepidMsg::Data(Data::read(&mut buf).expect("failed to read into data"))
+            }
+            IntrepidMsgType::Broadcast => IntrepidMsg::BroadCast(
+                BroadCast::read(&mut buf).expect("failed to read into broadcast"),
+            ),
+        }
+    }
 }
-struct Data {
-    data: Vec<u8>,
+
+#[derive(Debug)]
+#[binrw]
+#[brw(little)]
+pub struct BroadCast {
+    pub id: u32,
+}
+#[derive(Debug)]
+#[binrw]
+#[brw(little)]
+pub struct Data {
+    pub d: [u8; 5],
 }
 
 pub struct Intrepid {
@@ -78,11 +104,8 @@ impl Intrepid {
         std::thread::spawn(b_thread);
         std::thread::spawn(a_thread);
 
-        let msg = msg_to_bytes(IntrepidMsg::Broadcast(BroadCast {
-            name: "blomp".to_string(),
-        }));
         let broadcast = move || loop {
-            tx.send(msg.clone())
+            tx.send(vec![0, 0, 0, 1])
                 .expect("send to broadcast thread failed");
             std::thread::sleep(std::time::Duration::from_secs(2))
         };
