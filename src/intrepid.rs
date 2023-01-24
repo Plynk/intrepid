@@ -34,6 +34,20 @@ pub enum IntrepidMsg {
     BroadCast(BroadCast),
     Data(Data),
 }
+
+#[derive(Debug)]
+#[binrw]
+#[brw(little)]
+pub struct BroadCast {
+    pub id: u32,
+}
+#[derive(Debug)]
+#[binrw]
+#[brw(little)]
+pub struct Data {
+    pub d: [u8; 5],
+}
+
 impl IntrepidMsg {
     pub fn into_frame(&self) -> IntrepidMsgFrame {
         let mut writer = std::io::Cursor::new(vec![]);
@@ -69,26 +83,13 @@ impl IntrepidMsgFrame {
     }
 }
 
-#[derive(Debug)]
-#[binrw]
-#[brw(little)]
-pub struct BroadCast {
-    pub id: u32,
-}
-#[derive(Debug)]
-#[binrw]
-#[brw(little)]
-pub struct Data {
-    pub d: [u8; 5],
-}
-
 pub struct Intrepid {
     peers: Vec<String>,
-    name: String,
+    name: u32,
 }
 
 impl Intrepid {
-    pub fn new(name: String) -> Intrepid {
+    pub fn new(name: u32) -> Intrepid {
         Intrepid {
             peers: vec![],
             name,
@@ -104,8 +105,15 @@ impl Intrepid {
         std::thread::spawn(b_thread);
         std::thread::spawn(a_thread);
 
+        let mut b = std::io::Cursor::new(vec![]);
+        IntrepidMsg::BroadCast(BroadCast { id: self.name })
+            .into_frame()
+            .write(&mut b)
+            .expect("failed write broadcast msg into bytes");
+
         let broadcast = move || loop {
-            tx.send(vec![0, 0, 0, 1])
+            println!("broadcast send {b:?}");
+            tx.send(b.clone().into_inner())
                 .expect("send to broadcast thread failed");
             std::thread::sleep(std::time::Duration::from_secs(2))
         };
@@ -113,13 +121,15 @@ impl Intrepid {
         // let (b_tx, b_rx) = std::sync::mpsc::channel();
 
         let audience = move || loop {
-            let msg = rx.recv().expect("sheesh");
-            println!("{msg:?}");
-            // let m = bytes_to_msg(msg);
-            // match m {
-            //     IntrepidMsg::Broadcast(x) => b_tx.send(x.name).expect("b_tx hung up"),
-            //     _ => {}
-            // }
+            let mut msg = std::io::Cursor::new(rx.recv().expect("sheesh"));
+            println!("audience recv: {msg:?}");
+            match IntrepidMsgFrame::read(&mut msg) {
+                Ok(mut m) => {
+                    let msg = m.into_msg();
+                    println!("{msg:?}");
+                }
+                Err(_) => println!("failed to read broadcast"),
+            }
         };
         std::thread::spawn(broadcast);
         std::thread::spawn(audience);

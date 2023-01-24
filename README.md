@@ -35,4 +35,8 @@
     - broadcast to peers
     - listen to all peers
 
-
+## TODO
+  - Data size
+    - fragmentation?
+  - what is a peer?
+  - routing
