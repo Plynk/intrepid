@@ -18,13 +18,11 @@ fn main() {
 
     let m = protocal::IntrepidMsg::BroadCast(protocal::BroadCast { id: 32 });
     println!("msg : {m:?}");
-    let m = m.into_frame();
-    println!("msg: {m:?}");
+    let mut b = vec![];
+    let m = m.encode(&mut b);
+    println!("bytes: {b:?}");
 
-    let mut b = std::io::Cursor::new(vec![]);
-    m.write(&mut b).expect("uh oh1");
-    println!("bytes : {b:?}");
-    b.set_position(0);
+    let mut b = std::io::Cursor::new(&mut b);
     let mut m = protocal::IntrepidMsgFrame::read(&mut b).expect("uh oh");
     println!("frame : {m:?}");
     let m = m.into_msg();

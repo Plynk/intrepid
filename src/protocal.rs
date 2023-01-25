@@ -1,6 +1,5 @@
 use binrw::{binrw, BinRead, BinWrite};
 
-
 #[derive(Debug)]
 #[binrw]
 #[brw(magic = b"\xFE\xEF", little)]
@@ -42,7 +41,6 @@ pub enum IntrepidMsg {
     BroadCast(BroadCast),
     Data(Data),
 }
-
 impl IntrepidMsg {
     pub fn into_frame(&self) -> IntrepidMsgFrame {
         let mut writer = std::io::Cursor::new(vec![]);
@@ -54,6 +52,13 @@ impl IntrepidMsg {
             length,
             data: writer.into_inner(),
         }
+    }
+
+    pub fn encode(&self, b: &mut Vec<u8>) -> anyhow::Result<()> {
+        let f = self.into_frame();
+        f.write(&mut std::io::Cursor::new(b));
+
+        anyhow::Ok(())
     }
 
     fn into_msg_type(&self) -> IntrepidMsgType {
