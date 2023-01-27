@@ -1,3 +1,4 @@
+use crate::protocal::*;
 use binrw::{binrw, BinRead, BinWrite};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
@@ -6,82 +7,7 @@ use std::{net::UdpSocket, sync::Arc};
 const BROADCAST_SENDER: &str = "255.255.255.255";
 const BROADCAST_LISTNER: &str = "0.0.0.0";
 const BROADCAST_PORT: &str = "6401";
-const BROADCAST_BUFFER_SIZE: usize = 10;
-
-#[derive(Debug)]
-#[binrw]
-#[brw(magic = b"\xFE\xEF", little)]
-pub struct IntrepidMsgFrame {
-    mtype: IntrepidMsgType,
-    length: u32,
-    #[br(count = length)]
-    data: Vec<u8>,
-}
-
-#[binrw]
-#[derive(Debug, Clone)]
-pub enum IntrepidMsgType {
-    #[brw(magic = b"\x00\x00")]
-    Broadcast,
-    #[brw(magic = b"\x00\x01")]
-    Data,
-}
-
-#[derive(Debug)]
-#[binrw]
-#[brw(little)]
-pub enum IntrepidMsg {
-    BroadCast(BroadCast),
-    Data(Data),
-}
-
-#[derive(Debug)]
-#[binrw]
-#[brw(little)]
-pub struct BroadCast {
-    pub id: u32,
-}
-#[derive(Debug)]
-#[binrw]
-#[brw(little)]
-pub struct Data {
-    pub d: [u8; 5],
-}
-
-impl IntrepidMsg {
-    pub fn into_frame(&self) -> IntrepidMsgFrame {
-        let mut writer = std::io::Cursor::new(vec![]);
-        self.write(&mut writer).expect("failed to write");
-        let length = writer.get_ref().len() as u32;
-
-        IntrepidMsgFrame {
-            mtype: self.into_msg_type(),
-            length,
-            data: writer.into_inner(),
-        }
-    }
-
-    fn into_msg_type(&self) -> IntrepidMsgType {
-        match *self {
-            IntrepidMsg::BroadCast(_) => IntrepidMsgType::Broadcast,
-            IntrepidMsg::Data(_) => IntrepidMsgType::Data,
-        }
-    }
-}
-
-impl IntrepidMsgFrame {
-    pub fn into_msg(&mut self) -> IntrepidMsg {
-        let mut buf = std::io::Cursor::new(self.data.clone());
-        match self.mtype {
-            IntrepidMsgType::Data => {
-                IntrepidMsg::Data(Data::read(&mut buf).expect("failed to read into data"))
-            }
-            IntrepidMsgType::Broadcast => IntrepidMsg::BroadCast(
-                BroadCast::read(&mut buf).expect("failed to read into broadcast"),
-            ),
-        }
-    }
-}
+const BROADCAST_BUFFER_SIZE: usize = 100;
 
 pub struct Intrepid {
     peers: Vec<String>,
@@ -112,21 +38,22 @@ impl Intrepid {
             .expect("failed write broadcast msg into bytes");
 
         let broadcast = move || loop {
-            println!("broadcast send {b:?}");
+            // println!("broadcast send {b:?}");
             tx.send(b.clone().into_inner())
                 .expect("send to broadcast thread failed");
             std::thread::sleep(std::time::Duration::from_secs(2))
         };
 
-        // let (b_tx, b_rx) = std::sync::mpsc::channel();
+        let (b_tx, b_rx) = std::sync::mpsc::channel();
 
         let audience = move || loop {
             let mut msg = std::io::Cursor::new(rx.recv().expect("sheesh"));
-            println!("audience recv: {msg:?}");
+            // println!("audience recv: {msg:?}");
             match IntrepidMsgFrame::read(&mut msg) {
                 Ok(mut m) => {
                     let msg = m.into_msg();
-                    println!("{msg:?}");
+                    b_tx.send(msg);
+                    // println!("{msg:?}");
                 }
                 Err(_) => println!("failed to read broadcast"),
             }
@@ -135,9 +62,9 @@ impl Intrepid {
         std::thread::spawn(audience);
 
         loop {
-            // let m = b_rx.recv();
-            println!("Receiving");
-            std::thread::sleep(std::time::Duration::from_secs(1));
+            let m = b_rx.recv();
+            println!("{m:?}");
+            // std::thread::sleep(std::time::Duration::from_secs(1));
         }
     }
 }

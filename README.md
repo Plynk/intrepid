@@ -38,5 +38,6 @@
 ## TODO
   - Data size
     - fragmentation?
+    - fix sill broadcast size const
   - what is a peer?
   - routing
