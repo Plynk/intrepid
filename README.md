@@ -35,4 +35,9 @@
     - broadcast to peers
     - listen to all peers
 
-
+## TODO
+  - Data size
+    - fragmentation?
+    - fix sill broadcast size const
+  - what is a peer?
+  - routing

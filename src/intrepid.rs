@@ -1,28 +1,72 @@
-use anyhow::{Ok, Result};
+use crate::protocal::*;
+use binrw::{binrw, BinRead, BinWrite};
 use serde::{Deserialize, Serialize};
+use std::io::Write;
 use std::{net::UdpSocket, sync::Arc};
 
 const BROADCAST_SENDER: &str = "255.255.255.255";
 const BROADCAST_LISTNER: &str = "0.0.0.0";
 const BROADCAST_PORT: &str = "6401";
-const BROADCAST_BUFFER_SIZE: usize = 10;
+const BROADCAST_BUFFER_SIZE: usize = 100;
 
-#[derive(Serialize, Deserialize)]
-pub struct IntrepidMSG {
-    msg_type: MsgType,
+pub struct Intrepid {
+    peers: Vec<String>,
+    name: u32,
 }
-#[derive(Serialize, Deserialize)]
-enum MsgType {
-    Broadcast(BroadCast),
-    Data(Data),
-}
-#[derive(Serialize, Deserialize)]
-struct BroadCast {
-    name: String,
-}
-#[derive(Serialize, Deserialize)]
-struct Data {
-    data: Vec<u8>,
+
+impl Intrepid {
+    pub fn new(name: u32) -> Intrepid {
+        Intrepid {
+            peers: vec![],
+            name,
+        }
+    }
+    pub fn start<S>(&mut self, socket: S)
+    where
+        S: IntrepidSocket,
+    {
+        let (tx, b_thread) = socket.broadcast_thread().expect("uhhhh b");
+        let (rx, a_thread) = socket.audience_thread().expect("uhhhh a");
+
+        std::thread::spawn(b_thread);
+        std::thread::spawn(a_thread);
+
+        let mut b = std::io::Cursor::new(vec![]);
+        IntrepidMsg::BroadCast(BroadCast { id: self.name })
+            .into_frame()
+            .write(&mut b)
+            .expect("failed write broadcast msg into bytes");
+
+        let broadcast = move || loop {
+            // println!("broadcast send {b:?}");
+            tx.send(b.clone().into_inner())
+                .expect("send to broadcast thread failed");
+            std::thread::sleep(std::time::Duration::from_secs(2))
+        };
+
+        let (b_tx, b_rx) = std::sync::mpsc::channel();
+
+        let audience = move || loop {
+            let mut msg = std::io::Cursor::new(rx.recv().expect("sheesh"));
+            // println!("audience recv: {msg:?}");
+            match IntrepidMsgFrame::read(&mut msg) {
+                Ok(mut m) => {
+                    let msg = m.into_msg();
+                    b_tx.send(msg);
+                    // println!("{msg:?}");
+                }
+                Err(_) => println!("failed to read broadcast"),
+            }
+        };
+        std::thread::spawn(broadcast);
+        std::thread::spawn(audience);
+
+        loop {
+            let m = b_rx.recv();
+            println!("{m:?}");
+            // std::thread::sleep(std::time::Duration::from_secs(1));
+        }
+    }
 }
 
 pub struct UDPNode {
@@ -63,9 +107,9 @@ impl IntrepidSocket for UDPNode {
     }
     fn broadcast_thread(
         &self,
-    ) -> Result<(
+    ) -> anyhow::Result<(
         std::sync::mpsc::Sender<Vec<u8>>,
-        Box<dyn Fn() -> Result<()> + Send>,
+        Box<dyn Fn() -> anyhow::Result<()> + Send>,
     )> {
         let socket = self.broad_cast_socket.clone();
         let (tx, rx) = std::sync::mpsc::channel();
@@ -80,7 +124,6 @@ impl IntrepidSocket for UDPNode {
                 loop {
                     let msg = rx.recv().expect("BroadCast sender hung up");
                     socket.send_to(&msg[..], format!("{BROADCAST_SENDER}:{BROADCAST_PORT}"));
-                    println!("Sent Broadcast");
                     std::thread::sleep(std::time::Duration::from_millis(1000));
                 }
                 Ok(())
@@ -89,9 +132,9 @@ impl IntrepidSocket for UDPNode {
     }
     fn audience_thread(
         &self,
-    ) -> Result<(
+    ) -> anyhow::Result<(
         std::sync::mpsc::Receiver<Vec<u8>>,
-        Box<dyn Fn() -> Result<()> + Send>,
+        Box<dyn Fn() -> anyhow::Result<()> + Send>,
     )> {
         let (tx, rx) = std::sync::mpsc::channel();
         let socket = self.broad_cast_socket.clone();
@@ -101,10 +144,9 @@ impl IntrepidSocket for UDPNode {
                 let mut buf = [0; BROADCAST_BUFFER_SIZE];
                 loop {
                     let (amt, src) = socket.recv_from(&mut buf)?;
-                    println!("Recieved Broadcast from : {src:?}");
                     tx.send(buf.to_vec()).expect("Audience Receiver hung up");
                 }
-                Ok(())
+                anyhow::Ok(())
             }),
         ))
     }
@@ -115,14 +157,14 @@ pub trait IntrepidSocket {
     fn sending_thread(&self) -> std::sync::mpsc::Sender<Vec<u8>>;
     fn broadcast_thread(
         &self,
-    ) -> Result<(
+    ) -> anyhow::Result<(
         std::sync::mpsc::Sender<Vec<u8>>,
-        Box<dyn Fn() -> Result<()> + Send>,
+        Box<dyn Fn() -> anyhow::Result<()> + Send>,
     )>;
     fn audience_thread(
         &self,
-    ) -> Result<(
+    ) -> anyhow::Result<(
         std::sync::mpsc::Receiver<Vec<u8>>,
-        Box<dyn Fn() -> Result<()> + Send>,
+        Box<dyn Fn() -> anyhow::Result<()> + Send>,
     )>;
 }

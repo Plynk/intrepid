@@ -1,27 +1,30 @@
 mod intrepid;
+mod protocal;
 use intrepid::IntrepidSocket;
 
+use binrw::{binrw, BinRead, BinWrite};
+
 fn main() {
-    let socket = intrepid::UDPNode::new(
-        "6402".to_string(),
-        "127.0.0.1".to_string(),
-        "127.0.0.2".to_string(),
-    );
+    let mut s = intrepid::UDPNode::new("6405".into(), "10.0.0.9".into(), "10.0.0.9".into());
+    let mut n = intrepid::Intrepid::new(0);
 
-    let (tx, b_thread) = socket.broadcast_thread().expect("uhhhh b");
-    let (rx, a_thread) = socket.audience_thread().expect("uhhhh a");
+    n.start(s);
 
-    std::thread::spawn(b_thread);
-    std::thread::spawn(a_thread);
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        println!(".");
+    }
 
-    let broadcast = move || loop {
-        tx.send(vec![0, 1, 0, 1])
-            .expect("send to broadcast thread failed");
-        std::thread::sleep(std::time::Duration::from_secs(2))
-    };
 
-    let audience = move || loop {
-        let msg = rx.recv().expect("sheesh");
-        println!("{msg:?}");
-    };
+    // let m = protocal::IntrepidMsg::BroadCast(protocal::BroadCast { id: 32 });
+    // println!("msg : {m:?}");
+    // let mut b = vec![];
+    // let m = m.encode(&mut b);
+    // println!("bytes: {b:?}");
+
+    // let mut b = std::io::Cursor::new(&mut b);
+    // let mut m = protocal::IntrepidMsgFrame::read(&mut b).expect("uh oh");
+    // println!("frame : {m:?}");
+    // let m = m.into_msg();
+    // println!("msg : {m:?}");
 }
