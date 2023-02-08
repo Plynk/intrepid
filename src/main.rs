@@ -5,8 +5,8 @@ use intrepid::IntrepidSocket;
 use binrw::{binrw, BinRead, BinWrite};
 
 fn main() {
-    let mut s = intrepid::UDPNode::new("6405".into(), "10.0.0.9".into(), "10.0.0.9".into());
-    let mut n = intrepid::Intrepid::new(0);
+    let mut s = intrepid::UDPNode::new("6406".into(), "10.0.0.9".into(), "10.0.0.9".into());
+    let mut n = intrepid::Intrepid::new(1);
 
     n.start(s);
 

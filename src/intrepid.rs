@@ -44,15 +44,16 @@ impl Intrepid {
             std::thread::sleep(std::time::Duration::from_secs(2))
         };
 
-        let (b_tx, b_rx) = std::sync::mpsc::channel();
+        let (p_tx, p_rx) = std::sync::mpsc::channel();
 
         let audience = move || loop {
-            let mut msg = std::io::Cursor::new(rx.recv().expect("sheesh"));
+            let (mut msg, src) = rx.recv().expect("sheesh");
+            let mut msg = std::io::Cursor::new(msg);
             // println!("audience recv: {msg:?}");
             match IntrepidMsgFrame::read(&mut msg) {
                 Ok(mut m) => {
                     let msg = m.into_msg();
-                    b_tx.send(msg);
+                    p_tx.send((msg,src));
                     // println!("{msg:?}");
                 }
                 Err(_) => println!("failed to read broadcast"),
@@ -62,7 +63,7 @@ impl Intrepid {
         std::thread::spawn(audience);
 
         loop {
-            let m = b_rx.recv();
+            let m = p_rx.recv();
             println!("{m:?}");
             // std::thread::sleep(std::time::Duration::from_secs(1));
         }
@@ -133,7 +134,7 @@ impl IntrepidSocket for UDPNode {
     fn audience_thread(
         &self,
     ) -> anyhow::Result<(
-        std::sync::mpsc::Receiver<Vec<u8>>,
+        std::sync::mpsc::Receiver<(Vec<u8>, std::net::SocketAddr)>,
         Box<dyn Fn() -> anyhow::Result<()> + Send>,
     )> {
         let (tx, rx) = std::sync::mpsc::channel();
@@ -144,7 +145,7 @@ impl IntrepidSocket for UDPNode {
                 let mut buf = [0; BROADCAST_BUFFER_SIZE];
                 loop {
                     let (amt, src) = socket.recv_from(&mut buf)?;
-                    tx.send(buf.to_vec()).expect("Audience Receiver hung up");
+                    tx.send((buf.to_vec(),src)).expect("Audience Receiver hung up");
                 }
                 anyhow::Ok(())
             }),
@@ -164,7 +165,7 @@ pub trait IntrepidSocket {
     fn audience_thread(
         &self,
     ) -> anyhow::Result<(
-        std::sync::mpsc::Receiver<Vec<u8>>,
+        std::sync::mpsc::Receiver<(Vec<u8>,std::net::SocketAddr)>,
         Box<dyn Fn() -> anyhow::Result<()> + Send>,
     )>;
 }

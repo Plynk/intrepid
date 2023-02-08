@@ -36,8 +36,15 @@
     - listen to all peers
 
 ## TODO
+### general
   - Data size
     - fragmentation?
     - fix sill broadcast size const
   - what is a peer?
   - routing
+### broadcast discovery 
+  - initially going to directly compare stored nodes to broadcasted nodes,
+    - may be worth in the future adding a hash to make checking for updates cheaper
+  - timestamping broadcasts
+    - nodes need to be heartbeat their broadcast or else they are dropped
+
