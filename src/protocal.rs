@@ -23,7 +23,7 @@ pub enum IntrepidMsgType {
 #[binrw]
 #[brw(little)]
 pub struct BroadCast {
-    pub id: u32,
+    pub name: u32,
      
 }
 #[derive(Debug)]
