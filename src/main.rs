@@ -6,7 +6,7 @@ use binrw::{binrw, BinRead, BinWrite};
 
 fn main() {
     let mut s = intrepid::UDPNode::new("6406".into(), "10.0.0.9".into(), "10.0.0.9".into());
-    let mut n = intrepid::Intrepid::new(1);
+    let mut n = intrepid::Intrepid::new(0);
 
     n.start(s);
 

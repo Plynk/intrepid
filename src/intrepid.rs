@@ -97,12 +97,17 @@ impl Intrepid {
                 Err(_) => println!("failed to read broadcast"),
             }
         };
+
         std::thread::spawn(broadcast);
         std::thread::spawn(audience);
 
         loop {
-            let (msg, src) = p_rx.recv().expect("main thread senders hung up");
 
+
+            // TEMP HEART BEAT CHECKING NEEDS TO BE DONE ELSEWHERE
+            self.check_peer_heartbeat();
+
+            let (msg, src) = p_rx.recv().expect("main thread senders hung up");
             match msg {
                 IntrepidMsg::BroadCast(x) => {
                     let peer = broadcast_to_peer(x, src);
