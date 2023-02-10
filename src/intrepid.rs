@@ -46,6 +46,7 @@ impl Intrepid {
         let found = self.peers.iter_mut().fold(false, |f, mut x| {
             if x.name == peer.name {
                 x.last_seen = peer.last_seen;
+                x.active = true;
                 return true || f;
             } else {
                 return false || f;
