@@ -42,6 +42,7 @@
     - fix sill broadcast size const
   - what is a peer?
   - routing
+  - make destination general for intrepid node trait sending function
 ### broadcast discovery 
   - initially going to directly compare stored nodes to broadcasted nodes,
     - may be worth in the future adding a hash to make checking for updates cheaper
