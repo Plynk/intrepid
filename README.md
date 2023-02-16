@@ -49,3 +49,24 @@
   - timestamping broadcasts
     - nodes need to be heartbeat their broadcast or else they are dropped
 
+## Iteration One
+  
+  - No mesh network
+    - meaning you can not see nodes through other nodes
+  - This will just be the transportation layer
+    - meaning that you will just be given a list of valid peers to talk to
+    - The pub/sub interface will implimented on top of this layer
+    - Data is shapeless at this layer
+  - API
+    - Recv channel
+      - data recieved will just be raw bytes
+    - Will be able to query peers in network
+      - amount
+      - IPs
+      - status (active or not)
+    - choose a peer on the network to send data to
+    - Heartbeat
+      - broad casting will also act as a heartbeat
+      - peers will be updated based on thier heartbeat
+    
+
