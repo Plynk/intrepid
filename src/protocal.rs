@@ -24,15 +24,14 @@ pub enum IntrepidMsgType {
 #[brw(little)]
 pub struct BroadCast {
     pub name: u32,
-     
 }
 #[derive(Debug)]
 #[binrw]
 #[brw(little)]
 pub struct Data {
-    length: u32,
+    pub length: u32,
     #[br(count = length)]
-    d: Vec<u8>,
+    pub d: Vec<u8>,
 }
 
 #[derive(Debug)]

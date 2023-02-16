@@ -5,7 +5,7 @@ use intrepid::IntrepidSocket;
 use binrw::{binrw, BinRead, BinWrite};
 
 fn main() {
-    let mut s = intrepid::UDPNode::new("6406".into(), "10.0.0.9".into(), "10.0.0.9".into());
+    let mut s = intrepid::UDPNode::new("6406".into(), "127.0.0.1".into());
     let mut n = intrepid::Intrepid::new(0);
 
     n.start(s);
@@ -14,7 +14,6 @@ fn main() {
         std::thread::sleep(std::time::Duration::from_secs(1));
         println!(".");
     }
-
 
     // let m = protocal::IntrepidMsg::BroadCast(protocal::BroadCast { id: 32 });
     // println!("msg : {m:?}");
